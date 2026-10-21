@@ -1,1534 +1,429 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <title>VU Study Tracker</title>
-    <style>
-      /* Design notes: a library-at-night ledger. Petrol-green walls, brass lamp light, paper-coloured text.
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VU Study Tracker</title>
+<style>
+/* Design notes: a library-at-night ledger. Petrol-green walls, brass lamp light, paper-coloured text.
    Serif for voice and numbers, plain sans for controls. Progress is a field of lecture squares, not rings or bars. */
-      :root {
-        color-scheme: dark;
-        --bg: #0d1a19;
-        --sf: #132422;
-        --line: #244039;
-        --tx: #ece6d4;
-        --mute: #8da39c;
-        --br: #d4ad60;
-        --br2: #e6c98c;
-        --on: #1a1405;
-        --bad: #e08373;
-        --tile: #1d3531;
-        --serif:
-          "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
-          Georgia, serif;
-      }
-      * {
-        box-sizing: border-box;
-        -webkit-tap-highlight-color: transparent;
-      }
-      html {
-        -webkit-text-size-adjust: 100%;
-      }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background: var(--bg);
-        color: var(--tx);
-        font:
-          16px/1.55 "Segoe UI",
-          system-ui,
-          -apple-system,
-          Roboto,
-          sans-serif;
-        font-variant-numeric: lining-nums tabular-nums;
-      }
-      #app.shell {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-      main {
-        width: 100%;
-        max-width: 860px;
-        margin: 0 auto;
-        padding: clamp(20px, 5vw, 44px) clamp(16px, 5vw, 32px) 110px;
-        flex: 1;
-      }
-      h1,
-      h2,
-      .serif {
-        font-family: var(--serif);
-        font-weight: 500;
-      }
-      h1 {
-        font-size: clamp(1.9rem, 6.5vw, 2.7rem);
-        line-height: 1.12;
-        margin: 0 0 10px;
-        letter-spacing: -0.01em;
-      }
-      h2 {
-        font-size: 1.2rem;
-        margin: 36px 0 6px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--line);
-      }
-      .lead {
-        font-family: var(--serif);
-        font-size: clamp(1.1rem, 3.2vw, 1.35rem);
-        line-height: 1.45;
-        margin: 0 0 24px;
-        max-width: 34em;
-      }
-      .lead b,
-      .big {
-        color: var(--br2);
-        font-weight: 500;
-      }
-      .sub {
-        color: var(--mute);
-        margin: 0 0 22px;
-      }
-      .mute {
-        color: var(--mute);
-      }
-      .sm {
-        font-size: 0.88rem;
-      }
-      .card {
-        border-top: 1px solid var(--line);
-        padding: 18px 0;
-      }
-      .big {
-        font-family: var(--serif);
-        font-size: clamp(2.3rem, 8vw, 3.2rem);
-        line-height: 1.05;
-      }
-      .prog {
-        height: 3px;
-        background: var(--line);
-        margin-top: 8px;
-      }
-      .prog i {
-        display: block;
-        height: 100%;
-        background: var(--br);
-        transition: width 0.4s;
-      }
-      .semrow {
-        display: flex;
-        gap: 10px;
-        align-items: baseline;
-        flex-wrap: wrap;
-      }
-      .semrow b {
-        font-family: var(--serif);
-        font-weight: 500;
-        font-size: 1.15rem;
-      }
-      /* lecture squares */
-      .strip {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 3px;
-        margin-top: 9px;
-      }
-      .tl {
-        width: 13px;
-        height: 13px;
-        border-radius: 3px;
-        background: var(--tile);
-        transition: background 0.25s;
-      }
-      .tl.on {
-        background: var(--br);
-      }
-      .tl.pl {
-        background: none;
-        box-shadow: inset 0 0 0 1.5px var(--br);
-      }
-      .gp {
-        width: 12px;
-        height: 13px;
-      }
-      @media (min-width: 700px) {
-        .tl {
-          width: 15px;
-          height: 15px;
-        }
-      }
-      .mrow,
-      .srow {
-        display: block;
-        padding: 14px 0;
-        border-top: 1px solid var(--line);
-        color: inherit;
-      }
-      .mrow:first-of-type {
-        border-top: 0;
-      }
-      .mh {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: baseline;
-      }
-      .srow {
-        cursor: pointer;
-        margin: 0 -10px;
-        padding: 16px 10px;
-      }
-      .srow:hover,
-      .mrow:hover {
-        background: var(--sf);
-      }
-      .srow .sn {
-        font-family: var(--serif);
-        font-weight: 500;
-        font-size: 1.2rem;
-      }
-      .exam h2 {
-        border: 0;
-        margin-bottom: 0;
-        padding: 0;
-      }
-      .eh {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 36px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--line);
-      }
-      .two {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 0 44px;
-      }
-      @media (min-width: 900px) {
-        .two {
-          grid-template-columns: 1fr 1fr;
-        }
-        main {
-          max-width: 980px;
-        }
-      }
-      /* controls */
-      button,
-      input,
-      select,
-      textarea {
-        font: inherit;
-        color: var(--tx);
-      }
-      button {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 10px 18px;
-        min-height: 44px;
-        background: none;
-        cursor: pointer;
-        transition:
-          background 0.15s,
-          border-color 0.15s;
-      }
-      button:hover {
-        border-color: var(--mute);
-      }
-      button.pri {
-        background: var(--br);
-        border-color: var(--br);
-        color: var(--on);
-        font-weight: 600;
-      }
-      button.pri:hover {
-        background: var(--br2);
-        border-color: var(--br2);
-      }
-      button:disabled {
-        opacity: 0.4;
-        cursor: default;
-      }
-      button.ghost {
-        border: 0;
-        color: var(--br2);
-        padding: 8px 8px;
-        min-height: 40px;
-        text-decoration: underline;
-        text-decoration-color: transparent;
-        text-underline-offset: 4px;
-      }
-      button.ghost:hover {
-        text-decoration-color: currentColor;
-        background: none;
-      }
-      button.dng {
-        border-color: #5a3a35;
-        color: var(--bad);
-      }
-      a {
-        color: var(--br2);
-        text-decoration: none;
-      }
-      :focus-visible {
-        outline: 2px solid var(--br);
-        outline-offset: 3px;
-      }
-      input[type="text"],
-      input[type="search"],
-      input[type="date"],
-      select {
-        width: 100%;
-        min-height: 46px;
-        background: none;
-        border: 0;
-        border-bottom: 1.5px solid var(--line);
-        border-radius: 0;
-        padding: 10px 2px;
-        transition: border-color 0.15s;
-      }
-      select option {
-        background: var(--sf);
-      }
-      textarea {
-        width: 100%;
-        min-height: 90px;
-        resize: vertical;
-        line-height: 1.55;
-        background: var(--sf);
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 11px 13px;
-        font-family: var(--serif);
-        font-size: 1.02rem;
-      }
-      input:focus,
-      select:focus,
-      textarea:focus {
-        border-color: var(--br);
-        outline: 0;
-      }
-      label.f {
-        display: block;
-        margin-bottom: 18px;
-      }
-      label.f > span {
-        display: block;
-        color: var(--mute);
-        font-size: 0.85rem;
-      }
-      .hint {
-        font-size: 0.85rem;
-        color: var(--mute);
-        margin-top: 6px;
-      }
-      .err {
-        color: var(--bad);
-      }
-      .okc {
-        color: var(--br2);
-      }
-      .row {
-        display: flex;
-        gap: 16px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .row > .grow {
-        flex: 1;
-        min-width: 150px;
-      }
-      .seg {
-        display: flex;
-        gap: 26px;
-        border-bottom: 1px solid var(--line);
-        margin-bottom: 18px;
-      }
-      .seg button {
-        border: 0;
-        border-bottom: 2px solid transparent;
-        border-radius: 0;
-        color: var(--mute);
-        padding: 10px 0;
-        min-height: 44px;
-        margin-bottom: -1px;
-      }
-      .seg button.on {
-        color: var(--tx);
-        border-color: var(--br);
-      }
-      .notice {
-        border: 1px solid #5b4c26;
-        color: var(--br2);
-        border-radius: 6px;
-        padding: 10px 14px;
-        margin-bottom: 16px;
-        font-size: 0.88rem;
-      }
-      .empty {
-        color: var(--mute);
-        padding: 26px 0;
-        font-family: var(--serif);
-        font-size: 1.05rem;
-      }
-      .back {
-        display: inline-flex;
-        align-items: center;
-        min-height: 40px;
-        margin-bottom: 10px;
-      }
-      /* lecture rows */
-      .lecs {
-        display: grid;
-        grid-template-columns: 1fr;
-        column-gap: 44px;
-      }
-      @media (min-width: 760px) {
-        .lecs {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-      .lec {
-        border-top: 1px solid var(--line);
-        padding: 6px 0;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 0 6px;
-      }
-      .lec label {
-        flex: 1;
-        min-width: 140px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        cursor: pointer;
-        min-height: 48px;
-      }
-      .lec .t {
-        display: block;
-        font-family: var(--serif);
-        font-size: 1.1rem;
-      }
-      .lec .s {
-        display: block;
-        color: var(--mute);
-        font-size: 0.82rem;
-      }
-      .lec.d .t {
-        color: var(--mute);
-        text-decoration: line-through;
-        text-decoration-color: var(--br);
-      }
-      .lec textarea {
-        flex-basis: 100%;
-        margin: 2px 0 10px;
-      }
-      .pv {
-        flex-basis: 100%;
-        font-family: var(--serif);
-        font-style: italic;
-        color: var(--mute);
-        cursor: pointer;
-        display: -webkit-box;
-        line-clamp: 2;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        white-space: pre-wrap;
-        border-left: 2px solid var(--br);
-        padding-left: 12px;
-        margin: 0 0 10px;
-      }
-      input[type="checkbox"] {
-        appearance: none;
-        width: 22px;
-        height: 22px;
-        border-radius: 4px;
-        border: 1.5px solid var(--mute);
-        flex: none;
-        display: grid;
-        place-items: center;
-        cursor: pointer;
-        background: none;
-        transition: 0.15s;
-        margin: 0;
-      }
-      input[type="checkbox"]:checked {
-        background: var(--br);
-        border-color: var(--br);
-      }
-      input[type="checkbox"]:checked::after {
-        content: "";
-        width: 5px;
-        height: 10px;
-        border: solid var(--on);
-        border-width: 0 2.2px 2.2px 0;
-        transform: rotate(45deg) translate(-1px, -1px);
-      }
-      .meta {
-        font-size: 0.85rem;
-        color: var(--mute);
-      }
-      .body {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font-family: var(--serif);
-        font-size: 1.05rem;
-        margin-top: 6px;
-      }
-      details.card summary {
-        cursor: pointer;
-        font-family: var(--serif);
-        font-size: 1.1rem;
-        min-height: 36px;
-      }
-      details.card[open] summary {
-        margin-bottom: 14px;
-      }
-      /* navigation */
-      nav {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 10;
-        background: var(--bg);
-        border-top: 1px solid var(--line);
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-      nav div {
-        max-width: 640px;
-        margin: 0 auto;
-        display: flex;
-      }
-      nav a {
-        flex: 1;
-        text-align: center;
-        padding: 14px 2px 13px;
-        color: var(--mute);
-        font-size: 0.82rem;
-        border-top: 2px solid transparent;
-        margin-top: -1px;
-      }
-      nav a.on {
-        color: var(--tx);
-        border-top-color: var(--br);
-      }
-      nav .brand {
-        display: none;
-      }
-      @media (min-width: 760px) {
-        nav {
-          position: sticky;
-          top: 0;
-          order: -1;
-          border-top: 0;
-          border-bottom: 1px solid var(--line);
-        }
-        nav div {
-          max-width: 980px;
-          padding: 0 32px;
-          align-items: center;
-          gap: 30px;
-        }
-        nav .brand {
-          display: block;
-          font-family: var(--serif);
-          font-size: 1.15rem;
-          margin-right: auto;
-          padding: 14px 0;
-        }
-        nav a {
-          flex: none;
-          padding: 18px 0 16px;
-          font-size: 0.95rem;
-          border-top: 0;
-          border-bottom: 2px solid transparent;
-          margin: 0 0 -1px;
-        }
-        nav a.on {
-          border-bottom-color: var(--br);
-        }
-        main {
-          padding-bottom: 60px;
-        }
-      }
-      /* setup flows */
-      .ob {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        max-width: 540px;
-        margin: 0 auto;
-        padding: 22px 22px 30px;
-      }
-      .ob .top {
-        height: 2px;
-        background: var(--line);
-        margin-bottom: 44px;
-      }
-      .ob .top i {
-        display: block;
-        height: 100%;
-        background: var(--br);
-        transition: width 0.35s;
-      }
-      .ob .step {
-        flex: 1;
-        animation: in 0.3s ease;
-      }
-      .stp {
-        color: var(--br2);
-        font-family: var(--serif);
-        font-style: italic;
-        margin-bottom: 12px;
-      }
-      .ob .foot {
-        display: flex;
-        gap: 10px;
-        margin-top: 22px;
-      }
-      .ob .foot .pri {
-        flex: 1;
-      }
-      @keyframes in {
-        from {
-          opacity: 0;
-          transform: translateX(16px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
-      @media (min-width: 700px) {
-        .ob {
-          justify-content: center;
-        }
-        .ob .step {
-          flex: none;
-          margin-bottom: 10px;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        * {
-          animation: none !important;
-          transition: none !important;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script>
-      "use strict";
-      /* ========== 1. STATE ========== */
-      const KEY = "vu-study-tracker-v2",
-        MODES = { mid: "Midterm", fin: "Final-term" };
-      const defaults = () => ({
-        name: "",
-        onboarded: false,
-        nextId: 1,
-        subjects: [],
-        exams: { mid: "2026-12-07", fin: "2027-01-25" },
-        mode: null,
-        done: {},
-        notes: {},
-        plans: {},
-      });
-      let S = defaults(),
-        saveFailed = false,
-        ONB = null,
-        EDIT = null,
-        ADD_SUB = null,
-        NEW = null,
-        NQ = "",
-        NS = "",
-        LF = "all";
-      const OPEN = new Set();
+:root{color-scheme:dark;--bg:#0d1a19;--sf:#132422;--line:#244039;--tx:#ece6d4;--mute:#8da39c;--br:#d4ad60;--br2:#e6c98c;--on:#1a1405;--bad:#e08373;--tile:#1d3531;
+--serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--tx);font:16px/1.55 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-variant-numeric:lining-nums tabular-nums}
+#app.shell{display:flex;flex-direction:column;min-height:100vh}
+main{width:100%;max-width:860px;margin:0 auto;padding:clamp(20px,5vw,44px) clamp(16px,5vw,32px) 110px;flex:1}
+h1,h2,.serif{font-family:var(--serif);font-weight:500}
+h1{font-size:clamp(1.9rem,6.5vw,2.7rem);line-height:1.12;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:1.2rem;margin:36px 0 6px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.lead{font-family:var(--serif);font-size:clamp(1.1rem,3.2vw,1.35rem);line-height:1.45;margin:0 0 24px;max-width:34em}
+.lead b,.big{color:var(--br2);font-weight:500}
+.sub{color:var(--mute);margin:0 0 22px}.mute{color:var(--mute)}.sm{font-size:.88rem}
+.card{border-top:1px solid var(--line);padding:18px 0}
+.big{font-family:var(--serif);font-size:clamp(2.3rem,8vw,3.2rem);line-height:1.05}
+.prog{height:3px;background:var(--line);margin-top:8px}.prog i{display:block;height:100%;background:var(--br);transition:width .4s}
+.semrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.semrow b{font-family:var(--serif);font-weight:500;font-size:1.15rem}
+/* lecture squares */
+.strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:9px}
+.tl{width:13px;height:13px;border-radius:3px;background:var(--tile);transition:background .25s}
+.tl.on{background:var(--br)}.tl.pl{background:none;box-shadow:inset 0 0 0 1.5px var(--br)}
+.gp{width:12px;height:13px}
+@media(min-width:700px){.tl{width:15px;height:15px}}
+.mrow,.srow{display:block;padding:14px 0;border-top:1px solid var(--line);color:inherit}
+.mrow:first-of-type{border-top:0}
+.mh{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.srow{cursor:pointer;margin:0 -10px;padding:16px 10px}.srow:hover,.mrow:hover{background:var(--sf)}
+.srow .sn{font-family:var(--serif);font-weight:500;font-size:1.2rem}
+.exam h2{border:0;margin-bottom:0;padding:0}.eh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:36px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.two{display:grid;grid-template-columns:1fr;gap:0 44px}@media(min-width:900px){.two{grid-template-columns:1fr 1fr}main{max-width:980px}}
+/* controls */
+button,input,select,textarea{font:inherit;color:var(--tx)}
+button{border:1px solid var(--line);border-radius:6px;padding:10px 18px;min-height:44px;background:none;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{border-color:var(--mute)}
+button.pri{background:var(--br);border-color:var(--br);color:var(--on);font-weight:600}button.pri:hover{background:var(--br2);border-color:var(--br2)}
+button:disabled{opacity:.4;cursor:default}
+button.ghost{border:0;color:var(--br2);padding:8px 8px;min-height:40px;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:4px}button.ghost:hover{text-decoration-color:currentColor;background:none}
+button.dng{border-color:#5a3a35;color:var(--bad)}
+a{color:var(--br2);text-decoration:none}
+:focus-visible{outline:2px solid var(--br);outline-offset:3px}
+input[type=text],input[type=search],input[type=date],select{width:100%;min-height:46px;background:none;border:0;border-bottom:1.5px solid var(--line);border-radius:0;padding:10px 2px;transition:border-color .15s}
+select option{background:var(--sf)}
+textarea{width:100%;min-height:90px;resize:vertical;line-height:1.55;background:var(--sf);border:1px solid var(--line);border-radius:6px;padding:11px 13px;font-family:var(--serif);font-size:1.02rem}
+input:focus,select:focus,textarea:focus{border-color:var(--br);outline:0}
+label.f{display:block;margin-bottom:18px}label.f>span{display:block;color:var(--mute);font-size:.85rem}
+.hint{font-size:.85rem;color:var(--mute);margin-top:6px}.err{color:var(--bad)}.okc{color:var(--br2)}
+.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.row>.grow{flex:1;min-width:150px}
+.seg{display:flex;gap:26px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.seg button{border:0;border-bottom:2px solid transparent;border-radius:0;color:var(--mute);padding:10px 0;min-height:44px;margin-bottom:-1px}.seg button.on{color:var(--tx);border-color:var(--br)}
+.notice{border:1px solid #5b4c26;color:var(--br2);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.88rem}
+.empty{color:var(--mute);padding:26px 0;font-family:var(--serif);font-size:1.05rem}
+.back{display:inline-flex;align-items:center;min-height:40px;margin-bottom:10px}
+/* lecture rows */
+.lecs{display:grid;grid-template-columns:1fr;column-gap:44px}@media(min-width:760px){.lecs{grid-template-columns:1fr 1fr}}
+.lec{border-top:1px solid var(--line);padding:6px 0;display:flex;align-items:center;flex-wrap:wrap;gap:0 6px}
+.lec label{flex:1;min-width:140px;display:flex;align-items:center;gap:14px;cursor:pointer;min-height:48px}
+.lec .t{display:block;font-family:var(--serif);font-size:1.1rem}.lec .s{display:block;color:var(--mute);font-size:.82rem}
+.lec.d .t{color:var(--mute);text-decoration:line-through;text-decoration-color:var(--br)}
+.lec textarea{flex-basis:100%;margin:2px 0 10px}
+.pv{flex-basis:100%;font-family:var(--serif);font-style:italic;color:var(--mute);cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;border-left:2px solid var(--br);padding-left:12px;margin:0 0 10px}
+input[type=checkbox]{appearance:none;width:22px;height:22px;border-radius:4px;border:1.5px solid var(--mute);flex:none;display:grid;place-items:center;cursor:pointer;background:none;transition:.15s;margin:0}
+input[type=checkbox]:checked{background:var(--br);border-color:var(--br)}
+input[type=checkbox]:checked::after{content:"";width:5px;height:10px;border:solid var(--on);border-width:0 2.2px 2.2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.fl{list-style:none;margin:0 0 6px;padding:0;flex-basis:100%}
+.fl li{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line);padding:2px 0;flex-wrap:wrap}.fl li:first-child{border-top:0}
+.fn{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem}
+.fa{flex-basis:100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 10px}.fa .hint{margin:0}
+.pf{flex-basis:100%;font-size:.85rem;color:var(--br2);cursor:pointer;margin:0 0 10px}
+.meta{font-size:.85rem;color:var(--mute)}.body{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--serif);font-size:1.05rem;margin-top:6px}
+details.card summary{cursor:pointer;font-family:var(--serif);font-size:1.1rem;min-height:36px}details.card[open] summary{margin-bottom:14px}
+/* navigation */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav div{max-width:640px;margin:0 auto;display:flex}
+nav a{flex:1;text-align:center;padding:14px 2px 13px;color:var(--mute);font-size:.82rem;border-top:2px solid transparent;margin-top:-1px}
+nav a.on{color:var(--tx);border-top-color:var(--br)}
+nav .brand{display:none}
+@media(min-width:760px){
+ nav{position:sticky;top:0;order:-1;border-top:0;border-bottom:1px solid var(--line)}
+ nav div{max-width:980px;padding:0 32px;align-items:center;gap:30px}
+ nav .brand{display:block;font-family:var(--serif);font-size:1.15rem;margin-right:auto;padding:14px 0}
+ nav a{flex:none;padding:18px 0 16px;font-size:.95rem;border-top:0;border-bottom:2px solid transparent;margin:0 0 -1px}
+ nav a.on{border-bottom-color:var(--br)}
+ main{padding-bottom:60px}
+}
+/* setup flows */
+.ob{min-height:100vh;display:flex;flex-direction:column;max-width:540px;margin:0 auto;padding:22px 22px 30px}
+.ob .top{height:2px;background:var(--line);margin-bottom:44px}.ob .top i{display:block;height:100%;background:var(--br);transition:width .35s}
+.ob .step{flex:1;animation:in .3s ease}.stp{color:var(--br2);font-family:var(--serif);font-style:italic;margin-bottom:12px}
+.ob .foot{display:flex;gap:10px;margin-top:22px}.ob .foot .pri{flex:1}
+@keyframes in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@media(min-width:700px){.ob{justify-content:center}.ob .step{flex:none;margin-bottom:10px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ========== 1. STATE ========== */
+const KEY="vu-study-tracker-v2",MODES={mid:"Midterm",fin:"Final-term"};
+const defaults=()=>({name:"",onboarded:false,nextId:1,subjects:[],exams:{mid:"2026-12-07",fin:"2027-01-25"},mode:null,done:{},notes:{},plans:{},files:[]});
+let S=defaults(),saveFailed=false,ONB=null,EDIT=null,ADD_SUB=null,NEW=null,NQ="",NS="",LF="all";const OPEN=new Set();
 
-      /* ========== 2. PERSISTENCE ========== */
-      function load() {
-        try {
-          const r = localStorage.getItem(KEY);
-          if (!r) return;
-          const d = JSON.parse(r),
-            b = defaults();
-          S = { ...b, ...d, exams: { ...b.exams, ...d.exams } };
-        } catch (e) {}
-      }
-      function save() {
-        try {
-          localStorage.setItem(KEY, JSON.stringify(S));
-          saveFailed = false;
-        } catch (e) {
-          saveFailed = true;
-        }
-        const w = document.getElementById("saveWarn");
-        if (w) w.hidden = !saveFailed;
-      }
+/* ========== 2. PERSISTENCE ========== */
+function load(){try{const r=localStorage.getItem(KEY);if(!r)return;const d=JSON.parse(r),b=defaults();S={...b,...d,exams:{...b.exams,...d.exams}}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));saveFailed=false}catch(e){saveFailed=true}const w=document.getElementById("saveWarn");if(w)w.hidden=!saveFailed}
 
-      /* ========== 3. DATES (calendar days from device clock) ========== */
-      const dn = (y, m, d) => Date.UTC(y, m - 1, d) / 864e5;
-      const today = () => {
-        const t = new Date();
-        return dn(t.getFullYear(), t.getMonth() + 1, t.getDate());
-      };
-      const pday = (s) => {
-        const [y, m, d] = s.split("-").map(Number);
-        return dn(y, m, d);
-      };
-      const daysTo = (m) => pday(S.exams[m]) - today();
-      const prepDays = (m) => Math.max(0, daysTo(m) - 2); // exam day and 2 revision days excluded
-      const fmtD = (s) => {
-        const [y, m, d] = s.split("-").map(Number);
-        return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-      };
-      const countdown = (m) => {
-        const d = daysTo(m);
-        return d < 0
-          ? "passed"
-          : d === 0
-            ? "today"
-            : d + (d === 1 ? " day" : " days");
-      };
-      function examState(m) {
-        const d = daysTo(m);
-        if (d < 0) return "This exam date has passed.";
-        if (d === 0) return "Exam day. Good luck!";
-        if (d <= 2) return "Revision time. No new lectures to prepare.";
-        return `${d - 2} preparation day${d - 2 > 1 ? "s" : ""} left, then 2 days of revision.`;
-      }
+/* ---- attached Word/PDF files: metadata in S.files, file contents in IndexedDB (too big for localStorage) ---- */
+const FOK=/\.(pdf|docx?)$/i,FMAX=10*1024*1024,FDB="vu-study-files";
+const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open(FDB,1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+async function fx(mode,fn){const db=await idb();try{return await new Promise((ok,no)=>{const tx=db.transaction("f",mode),rq=fn(tx.objectStore("f"));tx.oncomplete=()=>ok(rq&&rq.result);tx.onerror=tx.onabort=()=>no(tx.error)})}finally{db.close()}}
+const fput=(id,b)=>fx("readwrite",s=>s.put(b,id)),fget=id=>fx("readonly",s=>s.get(id)),fdel=id=>fx("readwrite",s=>s.delete(id)).catch(()=>{});
+const filesOf=k=>S.files.filter(f=>f.k===k);
+const fmtSize=n=>n<1048576?Math.max(1,Math.round(n/1024))+" KB":(n/1048576).toFixed(1)+" MB";
+function dropFiles(keys){const ks=new Set(keys);S.files.filter(f=>ks.has(f.k)).forEach(f=>fdel(f.id));S.files=S.files.filter(f=>!ks.has(f.k))}
+async function openFile(id){const f=S.files.find(x=>x.id===id);
+  try{const blob=await fget(id);if(!blob)throw 0;const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.rel="noopener";
+    if(/\.pdf$/i.test(f.name))a.target="_blank";else a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
+  catch(e){alert("This file could not be opened. It may have been cleared from the browser.")}}
 
-      /* ========== 4. LECTURE LISTS & PROGRESS ========== */
-      function parseList(str) {
-        const out = new Set();
-        str = str.trim();
-        if (!str) return [];
-        str = str
-          .replace(/\band\b/gi, ",")
-          .replace(/\s*(?:[-–—]|\bto\b)\s*/gi, "-");
-        if (/[^\d\s,;&+|،-]/.test(str)) return null;
-        for (const tok of str.split(/[\s,;&+|،]+/).filter(Boolean)) {
-          const m = tok.match(/^(\d{1,3})(?:[-–](\d{1,3}))?$/);
-          if (!m) return null;
-          const a = +m[1],
-            b = m[2] ? +m[2] : a;
-          if (a < 1 || b < a || b > 200) return null;
-          for (let i = a; i <= b; i++) out.add(i);
-        }
-        return [...out].sort((x, y) => x - y);
-      }
-      function fmtList(a) {
-        const r = [];
-        for (let i = 0; i < a.length; ) {
-          let j = i;
-          while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
-          r.push(j > i ? `${a[i]}-${a[j]}` : `${a[i]}`);
-          i = j + 1;
-        }
-        return r.join(", ");
-      }
-      const subj = (id) => S.subjects.find((s) => s.id == id);
-      const mk = (s, p, n) => `${s.id}|${p}${n}`;
-      const keysOf = (s, p) =>
-        (p === "m" ? s.mid : s.fin).map((n) => mk(s, p, n));
-      const modeKeys = (s, m) => keysOf(s, m === "mid" ? "m" : "f");
-      const allKeys = (s) => [...keysOf(s, "m"), ...keysOf(s, "f")];
-      function parseKey(k) {
-        const [id, r] = k.split("|"),
-          s = subj(id);
-        if (!s) return null;
-        const p = r[0],
-          n = +r.slice(1);
-        return (p === "m" ? s.mid : s.fin).includes(n) ? { s, p, n } : null;
-      }
-      const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
-      function stats(s) {
-        const k = allKeys(s),
-          p = k.filter((x) => S.done[x]).length;
-        return { p, t: k.length, pc: pct(p, k.length) };
-      }
-      function modeStats(m) {
-        let p = 0,
-          t = 0;
-        S.subjects.forEach((s) => {
-          const k = modeKeys(s, m);
-          t += k.length;
-          p += k.filter((x) => S.done[x]).length;
-        });
-        return { p, t, pc: pct(p, t) };
-      }
-      function overall() {
-        let p = 0,
-          t = 0;
-        S.subjects.forEach((s) => {
-          const x = stats(s);
-          p += x.p;
-          t += x.t;
-        });
-        return { p, t, pc: pct(p, t) };
-      }
-      const bar = (v) =>
-        `<div class="prog" role="progressbar" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100"><i style="width:${v}%"></i></div>`;
+/* ========== 3. DATES (calendar days from device clock) ========== */
+const dn=(y,m,d)=>Date.UTC(y,m-1,d)/864e5;
+const today=()=>{const t=new Date();return dn(t.getFullYear(),t.getMonth()+1,t.getDate())};
+const pday=s=>{const[y,m,d]=s.split("-").map(Number);return dn(y,m,d)};
+const daysTo=m=>pday(S.exams[m])-today();
+const prepDays=m=>Math.max(0,daysTo(m)-2);   // exam day and 2 revision days excluded
+const fmtD=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})};
+const countdown=m=>{const d=daysTo(m);return d<0?"passed":d===0?"today":d+(d===1?" day":" days")};
+function examState(m){const d=daysTo(m);
+  if(d<0)return"This exam date has passed.";if(d===0)return"Exam day. Good luck!";
+  if(d<=2)return"Revision time. No new lectures to prepare.";
+  return`${d-2} preparation day${d-2>1?"s":""} left, then 2 days of revision.`}
 
-      /* ========== 5. SCHEDULER ========== */
-      // Target N = ceil(remaining / prep days), split across subjects by remaining lectures (largest remainder,
-      // ties to the earlier subject); earliest unprepared lectures are chosen first.
-      function buildAuto(m, already) {
-        const D = prepDays(m);
-        if (D < 1) return [];
-        const rem = S.subjects.map((s) =>
-          modeKeys(s, m).filter((k) => !S.done[k]),
-        );
-        const R = rem.reduce((a, r) => a + r.length, 0);
-        if (!R) return [];
-        const N = Math.min(
-          R,
-          Math.max(0, Math.ceil((R + already) / D) - already),
-        );
-        const q = rem.map((r) => (N * r.length) / R),
-          fl = q.map(Math.floor);
-        let left = N - fl.reduce((a, b) => a + b, 0);
-        const order = q
-          .map((v, i) => i)
-          .sort((a, b) => q[b] - fl[b] - (q[a] - fl[a]) || a - b);
-        for (let g = 0; left > 0 && g < 5; g++)
-          for (const i of order)
-            if (left > 0 && fl[i] < rem[i].length) {
-              fl[i]++;
-              left--;
-            }
-        return rem.flatMap((r, i) => r.slice(0, fl[i]));
-      }
-      const sigOf = (m) =>
-        S.exams[m] +
-        "|" +
-        S.subjects.map((s) => `${s.id}:${s.mid}:${s.fin}`).join(",");
-      function visible(p, m) {
-        const rm = new Set(p.removed),
-          seen = new Set(),
-          pre = m === "mid" ? "m" : "f";
-        return [...p.auto, ...p.added].filter((k) => {
-          const x = parseKey(k);
-          if (!x || rm.has(k) || seen.has(k) || x.p !== pre) return false;
-          seen.add(k);
-          return true;
-        });
-      }
-      function ensurePlan(m) {
-        const t = today(),
-          sig = sigOf(m);
-        let p = S.plans[m];
-        if (p && p.date === t && p.sig === sig) return p;
-        if (p && p.date === t) {
-          const kept = visible(p, m).filter((k) => S.done[k]);
-          p = {
-            date: t,
-            sig,
-            auto: [
-              ...kept,
-              ...buildAuto(m, kept.length).filter((k) => !kept.includes(k)),
-            ],
-            added: p.added,
-            removed: p.removed,
-          };
-        } else
-          p = { date: t, sig, auto: buildAuto(m, 0), added: [], removed: [] };
-        S.plans[m] = p;
-        save();
-        return p;
-      }
-      function paceInfo(m) {
-        const D = prepDays(m);
-        if (D < 1) return "";
-        const p = ensurePlan(m),
-          dt = visible(p, m).filter((k) => S.done[k]).length,
-          left =
-            S.subjects.reduce(
-              (a, s) => a + modeKeys(s, m).filter((k) => !S.done[k]).length,
-              0,
-            ) + dt;
-        return left
-          ? `${left} lectures over ${D} days is about ${(left / D).toFixed(1)} a day, so today's goal is rounded up to ${Math.ceil(left / D)}.`
-          : "";
-      }
-      function curMode() {
-        if (!S.mode) S.mode = daysTo("mid") >= 0 ? "mid" : "fin";
-        return S.mode;
-      }
-      function plannedSet() {
-        const st = new Set();
-        ["mid", "fin"].forEach((m) =>
-          visible(ensurePlan(m), m).forEach((k) => st.add(k)),
-        );
-        return st;
-      }
+/* ========== 4. LECTURE LISTS & PROGRESS ========== */
+function parseList(str){
+  const out=new Set();str=str.trim();if(!str)return[];
+  str=str.replace(/\band\b/gi,",").replace(/\s*(?:[-–—]|\bto\b)\s*/gi,"-");
+  if(/[^\d\s,;&+|،-]/.test(str))return null;
+  for(const tok of str.split(/[\s,;&+|،]+/).filter(Boolean)){
+    const m=tok.match(/^(\d{1,3})(?:[-–](\d{1,3}))?$/);if(!m)return null;
+    const a=+m[1],b=m[2]?+m[2]:a;if(a<1||b<a||b>200)return null;
+    for(let i=a;i<=b;i++)out.add(i)}
+  return[...out].sort((x,y)=>x-y)}
+function fmtList(a){const r=[];for(let i=0;i<a.length;){let j=i;while(j+1<a.length&&a[j+1]===a[j]+1)j++;r.push(j>i?`${a[i]}-${a[j]}`:`${a[i]}`);i=j+1}return r.join(", ")}
+const subj=id=>S.subjects.find(s=>s.id==id);
+const mk=(s,p,n)=>`${s.id}|${p}${n}`;
+const keysOf=(s,p)=>(p==="m"?s.mid:s.fin).map(n=>mk(s,p,n));
+const modeKeys=(s,m)=>keysOf(s,m==="mid"?"m":"f");
+const allKeys=s=>[...keysOf(s,"m"),...keysOf(s,"f")];
+function parseKey(k){const[id,r]=k.split("|"),s=subj(id);if(!s)return null;const p=r[0],n=+r.slice(1);
+  return(p==="m"?s.mid:s.fin).includes(n)?{s,p,n}:null}
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+function stats(s){const k=allKeys(s),p=k.filter(x=>S.done[x]).length;return{p,t:k.length,pc:pct(p,k.length)}}
+function modeStats(m){let p=0,t=0;S.subjects.forEach(s=>{const k=modeKeys(s,m);t+=k.length;p+=k.filter(x=>S.done[x]).length});return{p,t,pc:pct(p,t)}}
+function overall(){let p=0,t=0;S.subjects.forEach(s=>{const x=stats(s);p+=x.p;t+=x.t});return{p,t,pc:pct(p,t)}}
+const bar=v=>`<div class="prog" role="progressbar" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100"><i style="width:${v}%"></i></div>`;
 
-      /* ========== 6. UI RENDERING ========== */
-      const esc = (s) =>
-        String(s).replace(
-          /[&<>"']/g,
-          (c) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[c],
-        );
-      const warnBox = () =>
-        `<div class="notice" id="saveWarn" role="alert" ${saveFailed ? "" : "hidden"}>Could not save to this browser. Your latest changes may be lost.</div>`;
-      const sec = (p) => (p === "m" ? "Midterm" : "Final-term");
-      // one square per lecture: filled = prepared, outlined = planned for today
-      function strip(groups, set) {
-        const n = groups.reduce((a, g) => a + g.length, 0),
-          d = groups.reduce((a, g) => a + g.filter((k) => S.done[k]).length, 0);
-        return `<div class="strip" role="img" aria-label="${d} of ${n} lectures prepared">${groups
-          .filter((g) => g.length)
-          .map((g) =>
-            g
-              .map(
-                (k) =>
-                  `<i class="tl${S.done[k] ? " on" : set.has(k) ? " pl" : ""}" title="Lecture ${parseKey(k).n}"></i>`,
-              )
-              .join(""),
-          )
-          .join('<i class="gp"></i>')}</div>`;
-      }
-      function lec(k, sub, extra) {
-        const x = parseKey(k),
-          on = !!S.done[k],
-          n = S.notes[k] || "",
-          op = OPEN.has(k);
-        return `<div class="lec${on ? " d" : ""}"><label><input type="checkbox" data-act="tog" data-k="${k}" ${on ? "checked" : ""} aria-label="Prepared"><span><span class="t">Lecture ${x.n}</span>${sub ? `<span class="s">${sub}</span>` : ""}</span></label>
-  <button class="ghost" data-act="note" data-k="${k}">${op ? "Close note" : n ? "View note" : "Add note"}</button>${extra || ""}
-  ${op ? `<textarea data-act="notein" data-k="${k}" aria-label="Note" placeholder="Write a note for this lecture">${esc(n)}</textarea>` : n ? `<div class="pv" data-act="note" data-k="${k}">${esc(n)}</div>` : ""}</div>`;
-      }
-      function greet() {
-        const h = new Date().getHours();
-        return (
-          (h < 12
-            ? "Good morning"
-            : h < 18
-              ? "Good afternoon"
-              : "Good evening") +
-          (S.name ? ", " + esc(S.name) : "") +
-          "."
-        );
-      }
+/* ========== 5. SCHEDULER ========== */
+// Target N = ceil(remaining / prep days), split across subjects by remaining lectures (largest remainder,
+// ties to the earlier subject); earliest unprepared lectures are chosen first.
+function buildAuto(m,already){
+  const D=prepDays(m);if(D<1)return[];
+  const rem=S.subjects.map(s=>modeKeys(s,m).filter(k=>!S.done[k]));
+  const R=rem.reduce((a,r)=>a+r.length,0);if(!R)return[];
+  const N=Math.min(R,Math.max(0,Math.ceil((R+already)/D)-already));
+  const q=rem.map(r=>N*r.length/R),fl=q.map(Math.floor);
+  let left=N-fl.reduce((a,b)=>a+b,0);
+  const order=q.map((v,i)=>i).sort((a,b)=>(q[b]-fl[b])-(q[a]-fl[a])||a-b);
+  for(let g=0;left>0&&g<5;g++)for(const i of order)if(left>0&&fl[i]<rem[i].length){fl[i]++;left--}
+  return rem.flatMap((r,i)=>r.slice(0,fl[i]))}
+const sigOf=m=>S.exams[m]+"|"+S.subjects.map(s=>`${s.id}:${s.mid}:${s.fin}`).join(",");
+function visible(p,m){const rm=new Set(p.removed),seen=new Set(),pre=m==="mid"?"m":"f";
+  return[...p.auto,...p.added].filter(k=>{const x=parseKey(k);if(!x||rm.has(k)||seen.has(k)||x.p!==pre)return false;seen.add(k);return true})}
+function ensurePlan(m){
+  const t=today(),sig=sigOf(m);let p=S.plans[m];
+  if(p&&p.date===t&&p.sig===sig)return p;
+  if(p&&p.date===t){const kept=visible(p,m).filter(k=>S.done[k]);
+    p={date:t,sig,auto:[...kept,...buildAuto(m,kept.length).filter(k=>!kept.includes(k))],added:p.added,removed:p.removed}}
+  else p={date:t,sig,auto:buildAuto(m,0),added:[],removed:[]};
+  S.plans[m]=p;save();return p}
+function paceInfo(m){const D=prepDays(m);if(D<1)return"";
+  const p=ensurePlan(m),dt=visible(p,m).filter(k=>S.done[k]).length,left=S.subjects.reduce((a,s)=>a+modeKeys(s,m).filter(k=>!S.done[k]).length,0)+dt;
+  return left?`${left} lectures over ${D} days is about ${(left/D).toFixed(1)} a day, so today's goal is rounded up to ${Math.ceil(left/D)}.`:""}
+function curMode(){if(!S.mode)S.mode=daysTo("mid")>=0?"mid":"fin";return S.mode}
+function plannedSet(){const st=new Set();["mid","fin"].forEach(m=>visible(ensurePlan(m),m).forEach(k=>st.add(k)));return st}
 
-      function vHome() {
-        const o = overall(),
-          m = curMode(),
-          p = ensurePlan(m),
-          v = visible(p, m),
-          d = v.filter((k) => S.done[k]).length,
-          set = plannedSet();
-        const up = ["mid", "fin"].find((x) => daysTo(x) >= 0),
-          du = up ? daysTo(up) : 0;
-        const lead = !up
-          ? "Both exam dates have passed."
-          : du === 0
-            ? `Your ${MODES[up].toLowerCase()} exam is today.`
-            : `Your ${MODES[up].toLowerCase()} exam is <b>${du} day${du > 1 ? "s" : ""}</b> away.`;
-        const tb = !v.length
-          ? `<p class="empty" style="padding:14px 0">${prepDays(m) < 1 ? examState(m) : "Nothing planned for today."}</p>`
-          : d === v.length
-            ? `<div class="big">All done</div><p class="mute" style="margin:4px 0 14px">You finished today's ${v.length} lecture${v.length > 1 ? "s" : ""}.</p>`
-            : `<div class="big">${d}<span class="mute"> of ${v.length}</span></div><p class="mute" style="margin:4px 0 0">lectures done today · ${MODES[m]}</p>${bar(pct(d, v.length))}<p class="hint" style="margin-bottom:14px">${paceInfo(m)}</p>`;
-        const exam = (x) => {
-          const s = modeStats(x);
-          return `<section class="exam"><div class="eh"><h2>${MODES[x]}</h2><span class="mute sm">${fmtD(S.exams[x])} · ${countdown(x)}</span></div>
+/* ========== 6. UI RENDERING ========== */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const warnBox=()=>`<div class="notice" id="saveWarn" role="alert" ${saveFailed?"":"hidden"}>Could not save to this browser. Your latest changes may be lost.</div>`;
+const sec=p=>p==="m"?"Midterm":"Final-term";
+// one square per lecture: filled = prepared, outlined = planned for today
+function strip(groups,set){const n=groups.reduce((a,g)=>a+g.length,0),d=groups.reduce((a,g)=>a+g.filter(k=>S.done[k]).length,0);
+  return`<div class="strip" role="img" aria-label="${d} of ${n} lectures prepared">${groups.filter(g=>g.length).map(g=>g.map(k=>`<i class="tl${S.done[k]?" on":set.has(k)?" pl":""}" title="Lecture ${parseKey(k).n}"></i>`).join("")).join('<i class="gp"></i>')}</div>`}
+function fileList(k){const fs=filesOf(k);
+  return fs.length?`<ul class="fl">${fs.map(f=>`<li><span class="fn">${esc(f.name)}</span><span class="mute sm">${fmtSize(f.size)}</span><button class="ghost" data-act="fopen" data-id="${f.id}">${/\.pdf$/i.test(f.name)?"Open":"Download"}</button><button class="ghost" data-act="fdel" data-id="${f.id}" style="color:var(--bad)">Remove</button></li>`).join("")}</ul>`:""}
+function lec(k,sub,extra){const x=parseKey(k),on=!!S.done[k],n=S.notes[k]||"",op=OPEN.has(k),nf=filesOf(k).length;
+  return`<div class="lec${on?" d":""}"><label><input type="checkbox" data-act="tog" data-k="${k}" ${on?"checked":""} aria-label="Prepared"><span><span class="t">Lecture ${x.n}</span>${sub?`<span class="s">${sub}</span>`:""}</span></label>
+  <button class="ghost" data-act="note" data-k="${k}">${op?"Close note":n||nf?"View note":"Add note"}</button>${extra||""}
+  ${op?`<textarea data-act="notein" data-k="${k}" aria-label="Note" placeholder="Write a note for this lecture">${esc(n)}</textarea>${fileList(k)}<div class="fa"><button data-act="attach" data-k="${k}">Attach Word or PDF</button><span class="hint">PDF, DOC or DOCX, up to 10 MB each</span></div>`
+    :`${n?`<div class="pv" data-act="note" data-k="${k}">${esc(n)}</div>`:""}${nf?`<div class="pf" data-act="note" data-k="${k}">${nf} attached file${nf>1?"s":""}</div>`:""}`}</div>`}
+function greet(){const h=new Date().getHours();return(h<12?"Good morning":h<18?"Good afternoon":"Good evening")+(S.name?", "+esc(S.name):"")+"."}
+
+function vHome(){
+  const o=overall(),m=curMode(),p=ensurePlan(m),v=visible(p,m),d=v.filter(k=>S.done[k]).length,set=plannedSet();
+  const up=["mid","fin"].find(x=>daysTo(x)>=0),du=up?daysTo(up):0;
+  const lead=!up?"Both exam dates have passed.":du===0?`Your ${MODES[up].toLowerCase()} exam is today.`:`Your ${MODES[up].toLowerCase()} exam is <b>${du} day${du>1?"s":""}</b> away.`;
+  const tb=!v.length?`<p class="empty" style="padding:14px 0">${prepDays(m)<1?examState(m):"Nothing planned for today."}</p>`
+    :d===v.length?`<div class="big">All done</div><p class="mute" style="margin:4px 0 14px">You finished today's ${v.length} lecture${v.length>1?"s":""}.</p>`
+    :`<div class="big">${d}<span class="mute"> of ${v.length}</span></div><p class="mute" style="margin:4px 0 0">lectures done today · ${MODES[m]}</p>${bar(pct(d,v.length))}<p class="hint" style="margin-bottom:14px">${paceInfo(m)}</p>`;
+  const exam=x=>{const s=modeStats(x);return`<section class="exam"><div class="eh"><h2>${MODES[x]}</h2><span class="mute sm">${fmtD(S.exams[x])} · ${countdown(x)}</span></div>
     <div class="semrow" style="margin-top:14px"><b>${s.p} / ${s.t}</b><span class="mute sm">lectures prepared · ${s.pc}%</span></div>${bar(s.pc)}
-    <div style="margin-top:10px">${S.subjects
-      .map((sub) => {
-        const ks = modeKeys(sub, x);
-        if (!ks.length) return "";
-        const pp = ks.filter((k) => S.done[k]).length;
-        return `<a class="mrow" href="#/subject/${sub.id}"><span class="mh"><span>${esc(sub.name)}</span><span class="mute sm">${pp}/${ks.length}</span></span>${strip([ks], set)}</a>`;
-      })
-      .join("")}</div></section>`;
-        };
-        return `<h1>${greet()}</h1><p class="lead">${lead} You have prepared <b>${o.p}</b> of <b>${o.t}</b> lectures this semester.</p>
+    <div style="margin-top:10px">${S.subjects.map(sub=>{const ks=modeKeys(sub,x);if(!ks.length)return"";const pp=ks.filter(k=>S.done[k]).length;
+      return`<a class="mrow" href="#/subject/${sub.id}"><span class="mh"><span>${esc(sub.name)}</span><span class="mute sm">${pp}/${ks.length}</span></span>${strip([ks],set)}</a>`}).join("")}</div></section>`};
+  return`<h1>${greet()}</h1><p class="lead">${lead} You have prepared <b>${o.p}</b> of <b>${o.t}</b> lectures this semester.</p>
   <div class="semrow"><span class="mute sm">Whole semester (midterm and final-term together)</span><span class="mute sm">${o.pc}%</span></div>${bar(o.pc)}
   <h2>Today</h2>${tb}<a href="#/today"><button class="pri">Open today's list</button></a>
   <div class="two">${exam("mid")}${exam("fin")}</div>
-  <p class="hint" style="margin-top:22px">Each square is one lecture. Filled squares are prepared, outlined squares are planned for today.</p>`;
-      }
+  <p class="hint" style="margin-top:22px">Each square is one lecture. Filled squares are prepared, outlined squares are planned for today.</p>`}
 
-      function vToday() {
-        const m = curMode(),
-          p = ensurePlan(m),
-          v = visible(p, m),
-          d = v.filter((k) => S.done[k]).length;
-        const rows = v
-          .map((k) => {
-            const x = parseKey(k);
-            return lec(
-              k,
-              esc(x.s.name),
-              `<button class="ghost" data-act="rm" data-k="${k}" style="color:var(--mute)">Remove</button>`,
-            );
-          })
-          .join("");
-        const sel = subj(ADD_SUB) || S.subjects[0];
-        ADD_SUB = sel.id;
-        const taken = new Set(v);
-        const opts = modeKeys(sel, m)
-          .filter((k) => !S.done[k] && !taken.has(k))
-          .map((k) => `<option value="${k}">Lecture ${parseKey(k).n}</option>`)
-          .join("");
-        return `<h1>Today</h1><p class="sub">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
-  <div class="seg" role="group" aria-label="Exam mode">${["mid", "fin"].map((x) => `<button data-act="mode" data-m="${x}" class="${x === m ? "on" : ""}">${MODES[x]}</button>`).join("")}</div>
-  <div class="semrow"><b>${d} of ${v.length} done</b><span class="mute sm">${examState(m)}</span></div>${bar(pct(d, v.length))}
+function vToday(){
+  const m=curMode(),p=ensurePlan(m),v=visible(p,m),d=v.filter(k=>S.done[k]).length;
+  const rows=v.map(k=>{const x=parseKey(k);return lec(k,esc(x.s.name),`<button class="ghost" data-act="rm" data-k="${k}" style="color:var(--mute)">Remove</button>`)}).join("");
+  const sel=subj(ADD_SUB)||S.subjects[0];ADD_SUB=sel.id;const taken=new Set(v);
+  const opts=modeKeys(sel,m).filter(k=>!S.done[k]&&!taken.has(k)).map(k=>`<option value="${k}">Lecture ${parseKey(k).n}</option>`).join("");
+  return`<h1>Today</h1><p class="sub">${new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</p>
+  <div class="seg" role="group" aria-label="Exam mode">${["mid","fin"].map(x=>`<button data-act="mode" data-m="${x}" class="${x===m?"on":""}">${MODES[x]}</button>`).join("")}</div>
+  <div class="semrow"><b>${d} of ${v.length} done</b><span class="mute sm">${examState(m)}</span></div>${bar(pct(d,v.length))}
   <p class="hint" style="margin-bottom:18px">${paceInfo(m)}</p>
-  ${v.length ? `<div class="lecs">${rows}</div>` : `<p class="empty">${prepDays(m) < 1 ? "No new lectures in this period." : "Nothing assigned. Everything in this syllabus is prepared, or you removed today's lectures."}</p>`}
+  ${v.length?`<div class="lecs">${rows}</div>`:`<p class="empty">${prepDays(m)<1?"No new lectures in this period.":"Nothing assigned. Everything in this syllabus is prepared, or you removed today's lectures."}</p>`}
   <h2>Add a lecture to today</h2>
-  <div class="row" style="align-items:flex-end;margin-top:14px"><label class="f grow" style="margin:0"><span>Subject</span><select data-act="addsel">${S.subjects.map((s) => `<option value="${s.id}" ${s.id == sel.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
-  <label class="f grow" style="margin:0"><span>Lecture</span><select id="addLec" ${opts ? "" : "disabled"}>${opts || "<option>None left</option>"}</select></label>
-  <button class="pri" data-act="add" ${opts ? "" : "disabled"}>Add to today</button></div>`;
-      }
+  <div class="row" style="align-items:flex-end;margin-top:14px"><label class="f grow" style="margin:0"><span>Subject</span><select data-act="addsel">${S.subjects.map(s=>`<option value="${s.id}" ${s.id==sel.id?"selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
+  <label class="f grow" style="margin:0"><span>Lecture</span><select id="addLec" ${opts?"":"disabled"}>${opts||"<option>None left</option>"}</select></label>
+  <button class="pri" data-act="add" ${opts?"":"disabled"}>Add to today</button></div>`}
 
-      function vSubjects() {
-        const set = plannedSet();
-        return `<h1>Subjects</h1><p class="sub">Open a subject to see its lectures.</p>
-  <div>${S.subjects
-    .map((s) => {
-      const x = stats(s);
-      return `<div class="srow" data-act="open" data-id="${s.id}" tabindex="0" role="link"><div class="mh"><span class="sn">${esc(s.name)}</span><span class="mute sm">${x.p}/${x.t} · ${x.pc}%</span></div>
-    <div class="mute sm">${s.mid.length} midterm · ${s.fin.length} final-term lectures</div>${strip([keysOf(s, "m"), keysOf(s, "f")], set)}</div>`;
-    })
-    .join("")}</div>
-  <p style="margin-top:22px"><button class="pri" data-act="addsub">Add a subject</button></p>`;
-      }
+function vSubjects(){const set=plannedSet();
+  return`<h1>Subjects</h1><p class="sub">Open a subject to see its lectures.</p>
+  <div>${S.subjects.map(s=>{const x=stats(s);return`<div class="srow" data-act="open" data-id="${s.id}" tabindex="0" role="link"><div class="mh"><span class="sn">${esc(s.name)}</span><span class="mute sm">${x.p}/${x.t} · ${x.pc}%</span></div>
+    <div class="mute sm">${s.mid.length} midterm · ${s.fin.length} final-term lectures</div>${strip([keysOf(s,"m"),keysOf(s,"f")],set)}</div>`}).join("")}</div>
+  <p style="margin-top:22px"><button class="pri" data-act="addsub">Add a subject</button></p>`}
 
-      function listFields(mid, fin) {
-        return `<label class="f"><span>Midterm lecture numbers</span><input type="text" data-act="lecin" data-f="mid" value="${esc(mid)}" placeholder="e.g. 1-18"><div class="hint" data-c="mid"></div></label>
+function listFields(mid,fin){return`<label class="f"><span>Midterm lecture numbers</span><input type="text" data-act="lecin" data-f="mid" value="${esc(mid)}" placeholder="e.g. 1-18"><div class="hint" data-c="mid"></div></label>
   <label class="f"><span>Final-term lecture numbers</span><input type="text" data-act="lecin" data-f="fin" value="${esc(fin)}" placeholder="e.g. 19-45"><div class="hint" data-c="fin"></div></label>
-  <div class="hint" style="margin:-4px 0 14px">Use ranges and single numbers, like <b>1-9, 12, 15-20</b>, or paste the list VU gave you (commas, spaces, &amp; and "and" all work).</div>`;
-      }
+  <div class="hint" style="margin:-4px 0 14px">Use ranges and single numbers, like <b>1-9, 12, 15-20</b>, or paste the list VU gave you (commas, spaces, &amp; and "and" all work).</div>`}
 
-      function vSubject(id) {
-        const s = subj(id);
-        if (!s)
-          return `<a class="back" href="#/subjects">← Subjects</a><p>Subject not found.</p>`;
-        const x = stats(s),
-          set = plannedSet(),
-          flt = (k) => LF === "all" || (LF === "done") === !!S.done[k];
-        const section = (p, t) => {
-          const all = keysOf(s, p),
-            ks = all.filter(flt);
-          return `<h2>${t} · ${all.length} lectures</h2>${ks.length ? `<div class="lecs">${ks.map((k) => lec(k, "")).join("")}</div>` : `<p class="empty">${all.length ? "No lectures match this filter." : "No lectures in this section."}</p>`}`;
-        };
-        const e = EDIT && EDIT.id === s.id ? EDIT : null;
-        return `<a class="back" href="#/subjects">← Subjects</a><h1>${esc(s.name)}</h1><p class="sub" style="margin-bottom:0">${x.p} of ${x.t} prepared · ${x.pc}%</p>${strip([keysOf(s, "m"), keysOf(s, "f")], set)}
-  <div class="seg" style="margin-top:22px" role="group" aria-label="Filter lectures">${[
-    ["all", "All"],
-    ["todo", "Not prepared"],
-    ["done", "Prepared"],
-  ]
-    .map(
-      (a) =>
-        `<button data-act="lf" data-v="${a[0]}" class="${LF === a[0] ? "on" : ""}">${a[1]}</button>`,
-    )
-    .join("")}</div>
-  ${section("m", "Midterm")}${section("f", "Final-term")}
-  <h2>Manage subject</h2><details class="card" ${e ? "open" : ""} style="border-top:0"><summary>Edit name and lecture numbers</summary>
-  <label class="f"><span>Subject name</span><input type="text" id="en" maxlength="60" value="${esc(e ? e.name : s.name)}"></label>
-  ${listFields(e ? e.mid : fmtList(s.mid), e ? e.fin : fmtList(s.fin))}
+function vSubject(id){
+  const s=subj(id);if(!s)return`<a class="back" href="#/subjects">← Subjects</a><p>Subject not found.</p>`;
+  const x=stats(s),set=plannedSet(),flt=k=>LF==="all"||(LF==="done")===!!S.done[k];
+  const section=(p,t)=>{const all=keysOf(s,p),ks=all.filter(flt);return`<h2>${t} · ${all.length} lectures</h2>${ks.length?`<div class="lecs">${ks.map(k=>lec(k,"")).join("")}</div>`:`<p class="empty">${all.length?"No lectures match this filter.":"No lectures in this section."}</p>`}`};
+  const e=EDIT&&EDIT.id===s.id?EDIT:null;
+  return`<a class="back" href="#/subjects">← Subjects</a><h1>${esc(s.name)}</h1><p class="sub" style="margin-bottom:0">${x.p} of ${x.t} prepared · ${x.pc}%</p>${strip([keysOf(s,"m"),keysOf(s,"f")],set)}
+  <div class="seg" style="margin-top:22px" role="group" aria-label="Filter lectures">${[["all","All"],["todo","Not prepared"],["done","Prepared"]].map(a=>`<button data-act="lf" data-v="${a[0]}" class="${LF===a[0]?"on":""}">${a[1]}</button>`).join("")}</div>
+  ${section("m","Midterm")}${section("f","Final-term")}
+  <h2>Manage subject</h2><details class="card" ${e?"open":""} style="border-top:0"><summary>Edit name and lecture numbers</summary>
+  <label class="f"><span>Subject name</span><input type="text" id="en" maxlength="60" value="${esc(e?e.name:s.name)}"></label>
+  ${listFields(e?e.mid:fmtList(s.mid),e?e.fin:fmtList(s.fin))}
   <button class="pri" data-act="savesub" data-id="${s.id}">Save changes</button></details>
-  <button class="dng" data-act="delsub" data-id="${s.id}">Remove this subject</button>`;
-      }
+  <button class="dng" data-act="delsub" data-id="${s.id}">Remove this subject</button>`}
 
-      /* ---- notes ---- */
-      function noteItems() {
-        const q = NQ.trim().toLowerCase(),
-          out = [];
-        S.subjects.forEach((s) => {
-          if (NS && s.id != NS) return;
-          ["m", "f"].forEach((p) =>
-            keysOf(s, p).forEach((k) => {
-              const n = S.notes[k];
-              if (
-                n &&
-                (!q ||
-                  n.toLowerCase().includes(q) ||
-                  s.name.toLowerCase().includes(q))
-              )
-                out.push(k);
-            }),
-          );
-        });
-        return out;
-      }
-      function noteCard(k) {
-        const x = parseKey(k),
-          op = OPEN.has(k);
-        return `<div class="card"><div class="meta">${esc(x.s.name)} · ${sec(x.p)} · Lecture ${x.n}</div>
-  ${op ? `<textarea data-act="notein" data-k="${k}" aria-label="Note" style="margin-top:8px">${esc(S.notes[k])}</textarea>` : `<div class="body">${esc(S.notes[k])}</div>`}
-  <div class="row" style="margin-top:8px;gap:4px"><button class="ghost" data-act="note" data-k="${k}">${op ? "Done" : "Edit"}</button><button class="ghost" data-act="ndel" data-k="${k}" style="color:var(--bad)">Delete</button><a href="#/subject/${x.s.id}"><button class="ghost">Open subject</button></a></div></div>`;
-      }
-      function noteList() {
-        const ks = noteItems();
-        if (ks.length) return ks.map(noteCard).join("");
-        const any = Object.keys(S.notes).some((k) => S.notes[k] && parseKey(k));
-        return `<p class="empty">${any ? "No notes match your search." : "No notes yet. Open any lecture and tap “Add note” to write one."}</p>`;
-      }
-      function vNotes() {
-        const tot = Object.keys(S.notes).filter(
-          (k) => S.notes[k] && parseKey(k),
-        ).length;
-        return `<h1>Notes</h1><p class="sub">${tot ? `${tot} note${tot > 1 ? "s" : ""} across your lectures.` : "Everything you write about a lecture shows up here."}</p>
+/* ---- notes ---- */
+const noteKeysAll=()=>[...new Set([...Object.keys(S.notes).filter(k=>S.notes[k]),...S.files.map(f=>f.k)])].filter(parseKey);
+function noteItems(){const q=NQ.trim().toLowerCase(),out=[];
+  S.subjects.forEach(s=>{if(NS&&s.id!=NS)return;["m","f"].forEach(p=>keysOf(s,p).forEach(k=>{const n=S.notes[k]||"",fs=filesOf(k);
+    if((n||fs.length)&&(!q||n.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)||fs.some(f=>f.name.toLowerCase().includes(q))))out.push(k)}))});return out}
+function noteCard(k){const x=parseKey(k),op=OPEN.has(k);
+  return`<div class="card"><div class="meta">${esc(x.s.name)} · ${sec(x.p)} · Lecture ${x.n}</div>
+  ${op?`<textarea data-act="notein" data-k="${k}" aria-label="Note" style="margin-top:8px">${esc(S.notes[k]||"")}</textarea>`:S.notes[k]?`<div class="body">${esc(S.notes[k])}</div>`:""}
+  <div style="margin-top:8px">${fileList(k)}</div>
+  <div class="row" style="gap:4px"><button class="ghost" data-act="note" data-k="${k}">${op?"Done":"Edit"}</button><button class="ghost" data-act="attach" data-k="${k}">Attach file</button>${S.notes[k]?`<button class="ghost" data-act="ndel" data-k="${k}" style="color:var(--bad)">Delete note</button>`:""}<a href="#/subject/${x.s.id}"><button class="ghost">Open subject</button></a></div></div>`}
+function noteList(){const ks=noteItems();
+  if(ks.length)return ks.map(noteCard).join("");
+  const any=noteKeysAll().length>0;
+  return`<p class="empty">${any?"No notes match your search.":"No notes yet. Open any lecture and tap “Add note” to write one or attach a Word or PDF file."}</p>`}
+function vNotes(){const tot=noteKeysAll().length;
+  return`<h1>Notes</h1><p class="sub">${tot?`${tot} note${tot>1?"s":""} with notes or files.`:"Notes and Word or PDF files you add to a lecture show up here."}</p>
   <div class="row" style="margin-bottom:12px"><input class="grow" type="search" data-act="nq" value="${esc(NQ)}" placeholder="Search notes" aria-label="Search notes" style="flex:2">
-  <select class="grow" data-act="ns" aria-label="Filter by subject"><option value="">All subjects</option>${S.subjects.map((s) => `<option value="${s.id}" ${s.id == NS ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
-  <div id="nl">${noteList()}</div>`;
-      }
+  <select class="grow" data-act="ns" aria-label="Filter by subject"><option value="">All subjects</option>${S.subjects.map(s=>`<option value="${s.id}" ${s.id==NS?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
+  <div id="nl">${noteList()}</div>`}
 
-      function vSettings() {
-        return `<h1>Settings</h1><p class="sub">Your details and exam dates.</p>
+function vSettings(){
+  return`<h1>Settings</h1><p class="sub">Your details and exam dates.</p>
   <label class="f"><span>Your name</span><input type="text" data-f="name" value="${esc(S.name)}" maxlength="40"></label>
   <label class="f"><span>Midterm exam date</span><input type="date" data-f="exam" data-m="mid" value="${S.exams.mid}"></label>
   <label class="f"><span>Final-term exam date</span><input type="date" data-f="exam" data-m="fin" value="${S.exams.fin}"></label>
   <div class="hint" style="margin-bottom:26px">The two days before each exam are reserved for revision.</div>
-  <div class="notice">Your progress lives in this browser only. Clearing browser site data will erase it.</div>
-  <h2>Reset semester</h2><p class="mute sm">Clears your subjects, prepared lectures, notes, custom plans and settings, then takes you back to setup.</p><button class="dng" data-act="reset">Reset semester</button>`;
-      }
+  <div class="notice">Your progress, notes and attached files live in this browser only. Clearing browser site data will erase them.</div>
+  <h2>Reset semester</h2><p class="mute sm">Clears your subjects, prepared lectures, notes, custom plans and settings, then takes you back to setup.</p><button class="dng" data-act="reset">Reset semester</button>`}
 
-      /* ---- onboarding & add-subject flows ---- */
-      const newOnb = () => ({
-        step: 0,
-        subs: [{ name: "", mid: "1-18", fin: "19-45" }],
-        err: "",
-      });
-      function vOnboard() {
-        const o = ONB,
-          n = o.subs.length,
-          last = n + 2,
-          st = o.step;
-        let body = "";
-        if (st === 0)
-          body = `<h1>Welcome to your study tracker</h1><p class="sub">Let's set up your semester. It takes about a minute. What should we call you?</p><label class="f"><span>Your name</span><input type="text" id="nm" maxlength="40" value="${esc(S.name)}" placeholder="Your first name" autofocus></label>`;
-        else if (st === 1)
-          body = `<h1>Which subjects are you taking?</h1><p class="sub">Add every subject for this semester. You can change this later.</p>
-    ${o.subs.map((s, i) => `<div class="row" style="margin-bottom:6px;flex-wrap:nowrap;gap:6px"><input type="text" data-act="sname" data-i="${i}" maxlength="60" value="${esc(s.name)}" placeholder="Subject ${i + 1} (e.g. CS101)" aria-label="Subject ${i + 1} name">${n > 1 ? `<button class="ghost" data-act="osub-rm" data-i="${i}" aria-label="Remove subject" style="flex:none">✕</button>` : ""}</div>`).join("")}
-    ${n < 12 ? `<button class="ghost" data-act="osub-add" style="padding-left:0">+ Add another subject</button>` : ""}`;
-        else if (st <= n + 1) {
-          const i = st - 2,
-            s = o.subs[i];
-          body = `<h1>Lectures for ${esc(s.name)}</h1><p class="sub">Subject ${i + 1} of ${n}. Which lecture numbers fall in each exam?</p>${listFields(s.mid, s.fin)}<button class="ghost" data-act="preset" style="padding-left:0">Use standard syllabus (1-18 and 19-45)</button>`;
-        } else
-          body = `<h1>When are your exams?</h1><p class="sub">We'll plan your days around these. The last two days before each exam are kept for revision.</p>
+/* ---- onboarding & add-subject flows ---- */
+const newOnb=()=>({step:0,subs:[{name:"",mid:"1-18",fin:"19-45"}],err:""});
+function vOnboard(){
+  const o=ONB,n=o.subs.length,last=n+2,st=o.step;let body="";
+  if(st===0)body=`<h1>Welcome to your study tracker</h1><p class="sub">Let's set up your semester. It takes about a minute. What should we call you?</p><label class="f"><span>Your name</span><input type="text" id="nm" maxlength="40" value="${esc(S.name)}" placeholder="Your first name" autofocus></label>`;
+  else if(st===1)body=`<h1>Which subjects are you taking?</h1><p class="sub">Add every subject for this semester. You can change this later.</p>
+    ${o.subs.map((s,i)=>`<div class="row" style="margin-bottom:6px;flex-wrap:nowrap;gap:6px"><input type="text" data-act="sname" data-i="${i}" maxlength="60" value="${esc(s.name)}" placeholder="Subject ${i+1} (e.g. CS101)" aria-label="Subject ${i+1} name">${n>1?`<button class="ghost" data-act="osub-rm" data-i="${i}" aria-label="Remove subject" style="flex:none">✕</button>`:""}</div>`).join("")}
+    ${n<12?`<button class="ghost" data-act="osub-add" style="padding-left:0">+ Add another subject</button>`:""}`;
+  else if(st<=n+1){const i=st-2,s=o.subs[i];body=`<h1>Lectures for ${esc(s.name)}</h1><p class="sub">Subject ${i+1} of ${n}. Which lecture numbers fall in each exam?</p>${listFields(s.mid,s.fin)}<button class="ghost" data-act="preset" style="padding-left:0">Use standard syllabus (1-18 and 19-45)</button>`}
+  else body=`<h1>When are your exams?</h1><p class="sub">We'll plan your days around these. The last two days before each exam are kept for revision.</p>
     <label class="f"><span>Midterm exam date</span><input type="date" data-f="exam" data-m="mid" value="${S.exams.mid}"></label><label class="f"><span>Final-term exam date</span><input type="date" data-f="exam" data-m="fin" value="${S.exams.fin}"></label>`;
-        return `<div class="ob"><div class="top"><i style="width:${Math.round(((st + 1) / (last + 1)) * 100)}%"></i></div><div class="step"><div class="stp">Step ${st + 1} of ${last + 1}</div>${body}<div class="hint err">${esc(o.err)}</div></div>
-  <div class="foot">${st > 0 ? `<button data-act="oback">Back</button>` : ""}<button class="pri" data-act="onext">${st === last ? "Start tracking" : "Continue"}</button></div></div>`;
-      }
-      function vNewSub() {
-        const n = NEW,
-          st = n.step;
-        const body =
-          st === 0
-            ? `<h1>Add a subject</h1><p class="sub">What is the subject called?</p><label class="f"><span>Subject name</span><input type="text" data-act="nname" id="nn" maxlength="60" value="${esc(n.name)}" placeholder="e.g. CS101" autofocus></label>`
-            : `<h1>Lectures for ${esc(n.name)}</h1><p class="sub">Which lecture numbers fall in each exam?</p>${listFields(n.mid, n.fin)}<button class="ghost" data-act="npreset" style="padding-left:0">Use standard syllabus (1-18 and 19-45)</button>`;
-        return `<div class="ob"><div class="top"><i style="width:${st ? 100 : 50}%"></i></div><div class="step"><div class="stp">Step ${st + 1} of 2</div>${body}<div class="hint err">${esc(n.err)}</div></div>
-  <div class="foot"><button data-act="${st ? "nback" : "ncancel"}">${st ? "Back" : "Cancel"}</button><button class="pri" data-act="nnext">${st ? "Add subject" : "Continue"}</button></div></div>`;
-      }
-      function newNext() {
-        const n = NEW;
-        n.err = "";
-        if (n.step === 0) {
-          const v = document.getElementById("nn").value.trim();
-          if (!v) {
-            n.err = "Please enter a subject name.";
-            return render();
-          }
-          n.name = v;
-          n.step = 1;
-          return render();
-        }
-        const a = parseList(n.mid),
-          c = parseList(n.fin);
-        if (a === null || c === null) {
-          n.err = "Check the lecture numbers format, e.g. 1-9, 12.";
-          return render();
-        }
-        if (!a.length && !c.length) {
-          n.err = "Add at least one lecture number.";
-          return render();
-        }
-        S.subjects.push({ id: S.nextId++, name: n.name, mid: a, fin: c });
-        NEW = null;
-        save();
-        location.hash = "#/subjects";
-      }
+  return`<div class="ob"><div class="top"><i style="width:${Math.round((st+1)/(last+1)*100)}%"></i></div><div class="step"><div class="stp">Step ${st+1} of ${last+1}</div>${body}<div class="hint err">${esc(o.err)}</div></div>
+  <div class="foot">${st>0?`<button data-act="oback">Back</button>`:""}<button class="pri" data-act="onext">${st===last?"Start tracking":"Continue"}</button></div></div>`}
+function vNewSub(){
+  const n=NEW,st=n.step;
+  const body=st===0?`<h1>Add a subject</h1><p class="sub">What is the subject called?</p><label class="f"><span>Subject name</span><input type="text" data-act="nname" id="nn" maxlength="60" value="${esc(n.name)}" placeholder="e.g. CS101" autofocus></label>`
+    :`<h1>Lectures for ${esc(n.name)}</h1><p class="sub">Which lecture numbers fall in each exam?</p>${listFields(n.mid,n.fin)}<button class="ghost" data-act="npreset" style="padding-left:0">Use standard syllabus (1-18 and 19-45)</button>`;
+  return`<div class="ob"><div class="top"><i style="width:${st?100:50}%"></i></div><div class="step"><div class="stp">Step ${st+1} of 2</div>${body}<div class="hint err">${esc(n.err)}</div></div>
+  <div class="foot"><button data-act="${st?"nback":"ncancel"}">${st?"Back":"Cancel"}</button><button class="pri" data-act="nnext">${st?"Add subject":"Continue"}</button></div></div>`}
+function newNext(){
+  const n=NEW;n.err="";
+  if(n.step===0){const v=document.getElementById("nn").value.trim();if(!v){n.err="Please enter a subject name.";return render()}n.name=v;n.step=1;return render()}
+  const a=parseList(n.mid),c=parseList(n.fin);
+  if(a===null||c===null){n.err="Check the lecture numbers format, e.g. 1-9, 12.";return render()}
+  if(!a.length&&!c.length){n.err="Add at least one lecture number.";return render()}
+  S.subjects.push({id:S.nextId++,name:n.name,mid:a,fin:c});NEW=null;save();location.hash="#/subjects"}
 
-      function render() {
-        const app = document.getElementById("app");
-        app.className = "";
-        if (!S.onboarded) {
-          if (!ONB) ONB = newOnb();
-          app.innerHTML = vOnboard();
-          updCounts();
-          return;
-        }
-        const [, r, a] = (location.hash || "#/").split("/"),
-          route = r || "home",
-          nv = route === "subject" ? "subjects" : route;
-        if (route === "new-subject") {
-          if (!NEW)
-            NEW = { step: 0, name: "", mid: "1-18", fin: "19-45", err: "" };
-          app.innerHTML = vNewSub();
-          updCounts();
-          return;
-        }
-        const body =
-          route === "today"
-            ? vToday()
-            : route === "subjects"
-              ? vSubjects()
-              : route === "subject"
-                ? vSubject(a)
-                : route === "notes"
-                  ? vNotes()
-                  : route === "settings"
-                    ? vSettings()
-                    : vHome();
-        const tabs = [
-          ["home", "Home", "#/"],
-          ["today", "Today", "#/today"],
-          ["subjects", "Subjects", "#/subjects"],
-          ["notes", "Notes", "#/notes"],
-          ["settings", "Settings", "#/settings"],
-        ];
-        app.className = "shell";
-        app.innerHTML = `<main>${warnBox()}${body}</main><nav aria-label="Main"><div><span class="brand">VU Study Tracker</span>${tabs.map((t) => `<a href="${t[2]}" class="${t[0] === nv ? "on" : ""}" ${t[0] === nv ? 'aria-current="page"' : ""}>${t[1]}</a>`).join("")}</div></nav>`;
-        updCounts();
-      }
-      function updCounts() {
-        document.querySelectorAll('[data-act="lecin"]').forEach((i) => {
-          const l = parseList(i.value),
-            h = document.querySelector(`[data-c="${i.dataset.f}"]`);
-          if (!h) return;
-          h.className = "hint " + (l === null ? "err" : "okc");
-          h.textContent =
-            l === null
-              ? "Check the format, e.g. 1-9, 12"
-              : `${l.length} lecture${l.length === 1 ? "" : "s"}`;
-        });
-      }
+function render(){
+  const app=document.getElementById("app");app.className="";
+  if(!S.onboarded){if(!ONB)ONB=newOnb();app.innerHTML=vOnboard();updCounts();return}
+  const[,r,a]=(location.hash||"#/").split("/"),route=r||"home",nv=route==="subject"?"subjects":route;
+  if(route==="new-subject"){if(!NEW)NEW={step:0,name:"",mid:"1-18",fin:"19-45",err:""};app.innerHTML=vNewSub();updCounts();return}
+  const body=route==="today"?vToday():route==="subjects"?vSubjects():route==="subject"?vSubject(a):route==="notes"?vNotes():route==="settings"?vSettings():vHome();
+  const tabs=[["home","Home","#/"],["today","Today","#/today"],["subjects","Subjects","#/subjects"],["notes","Notes","#/notes"],["settings","Settings","#/settings"]];
+  app.className="shell";
+  app.innerHTML=`<main>${warnBox()}${body}</main><nav aria-label="Main"><div><span class="brand">VU Study Tracker</span>${tabs.map(t=>`<a href="${t[2]}" class="${t[0]===nv?"on":""}" ${t[0]===nv?'aria-current="page"':""}>${t[1]}</a>`).join("")}</div></nav>`;
+  updCounts()}
+function updCounts(){document.querySelectorAll('[data-act="lecin"]').forEach(i=>{
+  const l=parseList(i.value),h=document.querySelector(`[data-c="${i.dataset.f}"]`);if(!h)return;
+  h.className="hint "+(l===null?"err":"okc");h.textContent=l===null?"Check the format, e.g. 1-9, 12":`${l.length} lecture${l.length===1?"":"s"}`})}
 
-      /* ========== 7. EVENTS ========== */
-      const app = document.getElementById("app");
-      function refresh() {
-        save();
-        render();
-      }
-      function onbNext() {
-        const o = ONB,
-          n = o.subs.length,
-          st = o.step,
-          last = n + 2;
-        o.err = "";
-        if (st === 0) {
-          const v = document.getElementById("nm").value.trim();
-          if (!v) {
-            o.err = "Please enter your name.";
-            return render();
-          }
-          S.name = v;
-        } else if (st === 1) {
-          o.subs = o.subs.filter((s) => s.name.trim());
-          if (!o.subs.length) {
-            o.subs = [{ name: "", mid: "1-18", fin: "19-45" }];
-            o.err = "Add at least one subject name.";
-            return render();
-          }
-        } else if (st <= n + 1) {
-          const s = o.subs[st - 2],
-            a = parseList(s.mid),
-            b = parseList(s.fin);
-          if (a === null || b === null) {
-            o.err = "Check the lecture numbers format, e.g. 1-9, 12.";
-            return render();
-          }
-          if (!a.length && !b.length) {
-            o.err = "Add at least one lecture number.";
-            return render();
-          }
-        } else {
-          if (!S.exams.mid || !S.exams.fin) {
-            o.err = "Please choose both dates.";
-            return render();
-          }
-          S.subjects = o.subs.map((s, i) => ({
-            id: i + 1,
-            name: s.name.trim(),
-            mid: parseList(s.mid),
-            fin: parseList(s.fin),
-          }));
-          S.nextId = S.subjects.length + 1;
-          S.onboarded = true;
-          ONB = null;
-          S.mode = null;
-          S.done = {};
-          S.notes = {};
-          S.plans = {};
-          location.hash = "#/";
-          return refresh();
-        }
-        o.step++;
-        render();
-      }
-      app.addEventListener("click", (e) => {
-        const b = e.target.closest("[data-act]");
-        if (!b || /^(SELECT|TEXTAREA|INPUT)$/.test(b.tagName)) return;
-        const k = b.dataset.k,
-          m = curMode(),
-          o = ONB;
-        switch (b.dataset.act) {
-          case "onext":
-            return onbNext();
-          case "oback":
-            o.err = "";
-            o.step--;
-            return render();
-          case "osub-add":
-            o.subs.push({ name: "", mid: "1-18", fin: "19-45" });
-            render();
-            {
-              const t = app.querySelectorAll('[data-act="sname"]');
-              t[t.length - 1].focus();
-            }
-            return;
-          case "osub-rm":
-            o.subs.splice(+b.dataset.i, 1);
-            return render();
-          case "preset": {
-            const s = o.subs[o.step - 2];
-            s.mid = "1-18";
-            s.fin = "19-45";
-            return render();
-          }
-          case "note":
-            OPEN.has(k) ? OPEN.delete(k) : OPEN.add(k);
-            render();
-            {
-              const t = app.querySelector(`textarea[data-k="${k}"]`);
-              if (t) t.focus();
-            }
-            return;
-          case "ndel":
-            if (!confirm("Delete this note? This cannot be undone.")) return;
-            delete S.notes[k];
-            OPEN.delete(k);
-            return refresh();
-          case "lf":
-            LF = b.dataset.v;
-            return render();
-          case "mode":
-            S.mode = b.dataset.m;
-            return refresh();
-          case "rm": {
-            const p = ensurePlan(m);
-            p.added = p.added.filter((x) => x !== k);
-            if (!p.removed.includes(k)) p.removed.push(k);
-            return refresh();
-          }
-          case "add": {
-            const v = document.getElementById("addLec").value,
-              p = ensurePlan(m);
-            if (!v) return;
-            p.removed = p.removed.filter((x) => x !== v);
-            if (!p.auto.includes(v) && !p.added.includes(v)) p.added.push(v);
-            return refresh();
-          }
-          case "open":
-            LF = "all";
-            location.hash = "#/subject/" + b.dataset.id;
-            return;
-          case "addsub":
-            NEW = { step: 0, name: "", mid: "1-18", fin: "19-45", err: "" };
-            location.hash = "#/new-subject";
-            return;
-          case "nnext":
-            return newNext();
-          case "nback":
-            NEW.err = "";
-            NEW.step = 0;
-            return render();
-          case "ncancel":
-            NEW = null;
-            location.hash = "#/subjects";
-            return;
-          case "npreset":
-            NEW.mid = "1-18";
-            NEW.fin = "19-45";
-            return render();
-          case "savesub": {
-            const s = subj(b.dataset.id),
-              name = document.getElementById("en").value.trim(),
-              fm = document.querySelector('[data-f="mid"]').value,
-              ff = document.querySelector('[data-f="fin"]').value,
-              a = parseList(fm),
-              c = parseList(ff);
-            EDIT = { id: s.id, name, mid: fm, fin: ff };
-            if (!name || a === null || c === null) {
-              alert(
-                "Enter a subject name and valid lecture numbers (like 1-9, 12).",
-              );
-              return render();
-            }
-            if (!a.length && !c.length) {
-              alert("A subject needs at least one lecture.");
-              return render();
-            }
-            const lost = [
-              ...s.mid.filter((n) => !a.includes(n)).map((n) => mk(s, "m", n)),
-              ...s.fin.filter((n) => !c.includes(n)).map((n) => mk(s, "f", n)),
-            ].filter((q) => S.done[q] || S.notes[q]);
-            if (
-              lost.length &&
-              !confirm(
-                `This removes ${lost.length} lecture(s) that have progress or notes. That data will be permanently deleted. Continue?`,
-              )
-            )
-              return render();
-            lost.forEach((q) => {
-              delete S.done[q];
-              delete S.notes[q];
-            });
-            s.name = name;
-            s.mid = a;
-            s.fin = c;
-            EDIT = null;
-            return refresh();
-          }
-          case "delsub": {
-            const s = subj(b.dataset.id);
-            if (S.subjects.length < 2)
-              return alert("You need at least one subject.");
-            const x = stats(s);
-            if (
-              !confirm(
-                x.p
-                  ? `"${s.name}" has ${x.p} prepared lecture(s). Removing it deletes them permanently. Continue?`
-                  : `Remove "${s.name}"?`,
-              )
-            )
-              return;
-            allKeys(s).forEach((q) => {
-              delete S.done[q];
-              delete S.notes[q];
-            });
-            S.subjects = S.subjects.filter((q) => q.id !== s.id);
-            save();
-            location.hash = "#/subjects";
-            return;
-          }
-          case "reset":
-            if (
-              !confirm(
-                "Reset the semester?\n\nThis permanently clears all subjects, prepared lectures, notes, custom plans and settings.",
-              )
-            )
-              return;
-            S = defaults();
-            ONB = null;
-            EDIT = null;
-            NEW = null;
-            ADD_SUB = null;
-            NQ = "";
-            NS = "";
-            OPEN.clear();
-            save();
-            location.hash = "#/";
-            return render();
-        }
-      });
-      app.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && e.target.dataset.act === "open")
-          location.hash = "#/subject/" + e.target.dataset.id;
-        if (
-          e.key === "Enter" &&
-          e.target.tagName === "INPUT" &&
-          e.target.type === "text"
-        ) {
-          if (NEW && location.hash === "#/new-subject") newNext();
-          else if (ONB && !S.onboarded) onbNext();
-        }
-      });
-      app.addEventListener("change", (e) => {
-        const t = e.target,
-          k = t.dataset.k;
-        if (t.dataset.act === "tog") {
-          t.checked ? (S.done[k] = true) : delete S.done[k];
-          return refresh();
-        }
-        if (t.dataset.act === "addsel") {
-          ADD_SUB = +t.value;
-          return render();
-        }
-        if (t.dataset.act === "ns") {
-          NS = t.value;
-          document.getElementById("nl").innerHTML = noteList();
-          return;
-        }
-        if (t.dataset.f === "exam") {
-          if (t.value) S.exams[t.dataset.m] = t.value;
-          return S.onboarded ? refresh() : save();
-        }
-        if (t.dataset.f === "name") {
-          S.name = t.value.trim();
-          return refresh();
-        }
-      });
-      app.addEventListener("input", (e) => {
-        const t = e.target,
-          a = t.dataset.act;
-        if (a === "notein") {
-          t.value.trim()
-            ? (S.notes[t.dataset.k] = t.value)
-            : delete S.notes[t.dataset.k];
-          save();
-        } else if (a === "nq") {
-          NQ = t.value;
-          document.getElementById("nl").innerHTML = noteList();
-        } else if (a === "sname") ONB.subs[+t.dataset.i].name = t.value;
-        else if (a === "nname") NEW.name = t.value;
-        else if (a === "lecin") {
-          if (NEW && location.hash === "#/new-subject")
-            NEW[t.dataset.f] = t.value;
-          else if (ONB && !S.onboarded)
-            ONB.subs[ONB.step - 2][t.dataset.f] = t.value;
-          else if (EDIT) EDIT[t.dataset.f] = t.value;
-          updCounts();
-        }
-      });
-      window.addEventListener("hashchange", () => {
-        window.scrollTo(0, 0);
-        render();
-      });
-      document.addEventListener("visibilitychange", () => {
-        if (
-          !document.hidden &&
-          S.onboarded &&
-          !/^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName)
-        )
-          render();
-      });
-      load();
-      render();
-    </script>
-  </body>
+/* ========== 7. EVENTS ========== */
+const app=document.getElementById("app");
+function refresh(){save();render()}
+function onbNext(){
+  const o=ONB,n=o.subs.length,st=o.step,last=n+2;o.err="";
+  if(st===0){const v=document.getElementById("nm").value.trim();if(!v){o.err="Please enter your name.";return render()}S.name=v}
+  else if(st===1){o.subs=o.subs.filter(s=>s.name.trim());if(!o.subs.length){o.subs=[{name:"",mid:"1-18",fin:"19-45"}];o.err="Add at least one subject name.";return render()}}
+  else if(st<=n+1){const s=o.subs[st-2],a=parseList(s.mid),b=parseList(s.fin);
+    if(a===null||b===null){o.err="Check the lecture numbers format, e.g. 1-9, 12.";return render()}
+    if(!a.length&&!b.length){o.err="Add at least one lecture number.";return render()}}
+  else{if(!S.exams.mid||!S.exams.fin){o.err="Please choose both dates.";return render()}
+    S.subjects=o.subs.map((s,i)=>({id:i+1,name:s.name.trim(),mid:parseList(s.mid),fin:parseList(s.fin)}));
+    S.nextId=S.subjects.length+1;S.onboarded=true;ONB=null;S.mode=null;S.done={};S.notes={};S.plans={};location.hash="#/";return refresh()}
+  o.step++;render()}
+app.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b||/^(SELECT|TEXTAREA|INPUT)$/.test(b.tagName))return;
+  const k=b.dataset.k,m=curMode(),o=ONB;
+  switch(b.dataset.act){
+    case"onext":return onbNext();
+    case"oback":o.err="";o.step--;return render();
+    case"osub-add":o.subs.push({name:"",mid:"1-18",fin:"19-45"});render();{const t=app.querySelectorAll('[data-act="sname"]');t[t.length-1].focus()}return;
+    case"osub-rm":o.subs.splice(+b.dataset.i,1);return render();
+    case"preset":{const s=o.subs[o.step-2];s.mid="1-18";s.fin="19-45";return render()}
+    case"note":OPEN.has(k)?OPEN.delete(k):OPEN.add(k);render();{const t=app.querySelector(`textarea[data-k="${k}"]`);if(t)t.focus()}return;
+    case"ndel":if(!confirm("Delete this note? This cannot be undone."))return;delete S.notes[k];OPEN.delete(k);return refresh();
+    case"attach":FI.dataset.k=k;FI.click();return;
+    case"fopen":return openFile(b.dataset.id);
+    case"fdel":{const f=S.files.find(x=>x.id===b.dataset.id);if(!confirm(`Remove "${f.name}"? This cannot be undone.`))return;fdel(f.id);S.files=S.files.filter(x=>x.id!==f.id);return refresh()}
+    case"lf":LF=b.dataset.v;return render();
+    case"mode":S.mode=b.dataset.m;return refresh();
+    case"rm":{const p=ensurePlan(m);p.added=p.added.filter(x=>x!==k);if(!p.removed.includes(k))p.removed.push(k);return refresh()}
+    case"add":{const v=document.getElementById("addLec").value,p=ensurePlan(m);if(!v)return;
+      p.removed=p.removed.filter(x=>x!==v);if(!p.auto.includes(v)&&!p.added.includes(v))p.added.push(v);return refresh()}
+    case"open":LF="all";location.hash="#/subject/"+b.dataset.id;return;
+    case"addsub":NEW={step:0,name:"",mid:"1-18",fin:"19-45",err:""};location.hash="#/new-subject";return;
+    case"nnext":return newNext();
+    case"nback":NEW.err="";NEW.step=0;return render();
+    case"ncancel":NEW=null;location.hash="#/subjects";return;
+    case"npreset":NEW.mid="1-18";NEW.fin="19-45";return render();
+    case"savesub":{const s=subj(b.dataset.id),name=document.getElementById("en").value.trim(),
+        fm=document.querySelector('[data-f="mid"]').value,ff=document.querySelector('[data-f="fin"]').value,a=parseList(fm),c=parseList(ff);
+      EDIT={id:s.id,name,mid:fm,fin:ff};
+      if(!name||a===null||c===null){alert("Enter a subject name and valid lecture numbers (like 1-9, 12).");return render()}
+      if(!a.length&&!c.length){alert("A subject needs at least one lecture.");return render()}
+      const lost=[...s.mid.filter(n=>!a.includes(n)).map(n=>mk(s,"m",n)),...s.fin.filter(n=>!c.includes(n)).map(n=>mk(s,"f",n))].filter(q=>S.done[q]||S.notes[q]||filesOf(q).length);
+      if(lost.length&&!confirm(`This removes ${lost.length} lecture(s) that have progress, notes or attached files. That data will be permanently deleted. Continue?`))return render();
+      lost.forEach(q=>{delete S.done[q];delete S.notes[q]});dropFiles(lost);
+      s.name=name;s.mid=a;s.fin=c;EDIT=null;return refresh()}
+    case"delsub":{const s=subj(b.dataset.id);if(S.subjects.length<2)return alert("You need at least one subject.");
+      const x=stats(s);if(!confirm(x.p?`"${s.name}" has ${x.p} prepared lecture(s). Removing it deletes them, along with its notes and attached files, permanently. Continue?`:`Remove "${s.name}"?`))return;
+      dropFiles(allKeys(s));allKeys(s).forEach(q=>{delete S.done[q];delete S.notes[q]});S.subjects=S.subjects.filter(q=>q.id!==s.id);save();location.hash="#/subjects";return}
+    case"reset":if(!confirm("Reset the semester?\n\nThis permanently clears all subjects, prepared lectures, notes, attached files, custom plans and settings."))return;
+      try{indexedDB.deleteDatabase(FDB)}catch(e){}
+      S=defaults();ONB=null;EDIT=null;NEW=null;ADD_SUB=null;NQ="";NS="";OPEN.clear();save();location.hash="#/";return render();
+  }});
+app.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.dataset.act==="open")location.hash="#/subject/"+e.target.dataset.id;
+  if(e.key==="Enter"&&e.target.tagName==="INPUT"&&e.target.type==="text"){
+    if(NEW&&location.hash==="#/new-subject")newNext();else if(ONB&&!S.onboarded)onbNext()}});
+app.addEventListener("change",e=>{
+  const t=e.target,k=t.dataset.k;
+  if(t.dataset.act==="tog"){t.checked?S.done[k]=true:delete S.done[k];return refresh()}
+  if(t.dataset.act==="addsel"){ADD_SUB=+t.value;return render()}
+  if(t.dataset.act==="ns"){NS=t.value;document.getElementById("nl").innerHTML=noteList();return}
+  if(t.dataset.f==="exam"){if(t.value)S.exams[t.dataset.m]=t.value;return S.onboarded?refresh():save()}
+  if(t.dataset.f==="name"){S.name=t.value.trim();return refresh()}
+});
+app.addEventListener("input",e=>{
+  const t=e.target,a=t.dataset.act;
+  if(a==="notein"){t.value.trim()?S.notes[t.dataset.k]=t.value:delete S.notes[t.dataset.k];save()}
+  else if(a==="nq"){NQ=t.value;document.getElementById("nl").innerHTML=noteList()}
+  else if(a==="sname")ONB.subs[+t.dataset.i].name=t.value;
+  else if(a==="nname")NEW.name=t.value;
+  else if(a==="lecin"){if(NEW&&location.hash==="#/new-subject")NEW[t.dataset.f]=t.value;else if(ONB&&!S.onboarded)ONB.subs[ONB.step-2][t.dataset.f]=t.value;else if(EDIT)EDIT[t.dataset.f]=t.value;updCounts()}
+});
+window.addEventListener("hashchange",()=>{window.scrollTo(0,0);render()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.onboarded&&!/^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName))render()});
+const FI=document.createElement("input");FI.type="file";FI.multiple=true;FI.hidden=true;
+FI.accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";document.body.appendChild(FI);
+FI.addEventListener("change",async()=>{
+  const k=FI.dataset.k,list=[...FI.files],bad=[];FI.value="";
+  for(const f of list){
+    if(!FOK.test(f.name)){bad.push(f.name+" (only PDF, DOC or DOCX files)");continue}
+    if(f.size>FMAX){bad.push(f.name+" (larger than 10 MB)");continue}
+    const id="f"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+    try{await fput(id,/\.pdf$/i.test(f.name)?new Blob([f],{type:"application/pdf"}):f);S.files.push({id,k,name:f.name,size:f.size})}
+    catch(e){bad.push(f.name+" (could not be saved in this browser)")}}
+  refresh();if(bad.length)alert("Not added:\n"+bad.join("\n"))});
+load();render();
+</script>
+</body>
 </html>
